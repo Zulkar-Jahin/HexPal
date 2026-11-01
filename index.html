@@ -3,47 +3,87 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>HueKit — single color palette generator</title>
+<title>HueKit — color palette generator</title>
 <style>
   :root{
     --bg:#faf8f5; --ink:#1a1816; --muted:#8a8178; --line:#e4ded6; --card:#fff;
-    --accent:#c17440;
+  --accent:#c17440;
+  --r:12px; --r-lg:16px;
+  --shadow:0 1px 2px rgba(26,24,22,.04), 0 8px 24px -12px rgba(26,24,22,.18);
+  --pass-bg:#dcf5e3; --pass-fg:#14622f;
+  --warn-bg:#fdf0d5; --warn-fg:#7a5200;
+  --fail-bg:#fde4e2; --fail-fg:#8c1d18;
   }
+  @media (prefers-color-scheme: dark){
+  :root{
+    --bg:#14130f; --ink:#f2ede6; --muted:#9a9189; --line:#2e2a25; --card:#1c1a16;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+    --pass-bg:#15321f; --pass-fg:#7fe3a0;
+    --warn-bg:#36290f; --warn-fg:#f0c767;
+    --fail-bg:#3a1512; --fail-fg:#ff9d95;
+  }
+}
+@media (prefers-reduced-motion: reduce){ *{transition:none !important} }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
     background:var(--bg); color:var(--ink);
     font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    padding:28px 20px 80px; line-height:1.5;
+    padding:20px 20px 80px; line-height:1.5;
   }
   .wrap{max-width:1020px;margin:0 auto}
-  header{display:flex;align-items:center;gap:10px;margin-bottom:34px}
+  header{display:flex;align-items:center;gap:10px;margin-bottom:22px}
   .dot{width:22px;height:22px;border-radius:7px;background:var(--accent);
        box-shadow:0 0 0 1px rgba(0,0,0,.08) inset;transition:background .25s}
+  .dot.split{background:linear-gradient(90deg,var(--accent-a,#111) 50%,var(--accent-b,#c17440) 50%)}
   h1{font-size:19px;letter-spacing:-.4px;font-weight:650}
   h1 em{font-style:normal;color:var(--muted);font-weight:450}
   .tag{margin-left:auto;font-size:12px;color:var(--muted);font-family:ui-monospace,monospace}
 
-  .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
-  #colorInput{
-    flex:1 1 230px;min-width:0;padding:12px 14px;font-size:15px;
+  .modes{display:inline-flex;gap:3px;margin-bottom:16px;padding:4px;
+         background:var(--card);border:1px solid var(--line);border-radius:999px}
+  .modes button{padding:8px 16px;font-size:13px;font-weight:600;border-radius:999px;
+                border:1px solid transparent;background:transparent;color:var(--muted);transition:.18s}
+  .modes button:hover{color:var(--ink)}
+  .modes button.on{background:var(--ink);color:var(--bg)}
+
+  .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+       position:sticky;top:0;z-index:20;padding:10px 0 12px;margin-bottom:2px;
+       background:color-mix(in srgb, var(--bg) 92%, transparent);
+       backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  .color-slot{display:flex;gap:8px;flex:1 1 260px;min-width:0}
+  .color-slot input[type=text]{
+    flex:1 1 180px;min-width:0;padding:12px 14px;font-size:15px;
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
     border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);
     outline:none;transition:border-color .15s;
   }
-  #colorInput:focus{border-color:var(--accent)}
-  #picker{width:46px;height:45px;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--card);cursor:pointer}
+  .color-slot input[type=text]:focus{border-color:var(--accent)}
+  .color-slot input[type=color]{width:46px;height:45px;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--card);cursor:pointer}
   button{
-    padding:12px 16px;font-size:14px;font-weight:550;border-radius:10px;cursor:pointer;
-    border:1px solid var(--line);background:var(--card);color:var(--ink);transition:.15s;
+    padding:12px 16px;font-size:14px;font-weight:550;border-radius:var(--r);cursor:pointer;
+    border:1px solid var(--line);background:var(--card);color:var(--ink);
+    transition:border-color .15s, transform .12s, opacity .15s;
   }
   button:hover{border-color:var(--ink)}
+  button:active{transform:translateY(1px)}
   button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
   button.primary:hover{opacity:.85}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+  .hidden{display:none !important}
   #err{color:#b3261e;font-size:13px;min-height:19px;margin-bottom:18px}
 
-  .base{display:flex;flex-wrap:wrap;gap:18px;align-items:center;
-        background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:34px}
-  .base .big{width:92px;height:92px;border-radius:11px;box-shadow:0 0 0 1px rgba(0,0,0,.07) inset}
+  .base{display:flex;flex-wrap:wrap;gap:20px;align-items:center;
+        background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);
+        box-shadow:var(--shadow);padding:18px;margin-bottom:34px}
+  .base .big{width:108px;height:108px;border-radius:var(--r);
+             box-shadow:0 0 0 1px rgba(0,0,0,.07) inset;overflow:hidden;display:flex;flex-shrink:0}
+  .base .big i{flex:1;display:block;font-style:normal}
+  .base .name{font-size:17px;font-weight:650;letter-spacing:-.3px;margin-bottom:10px}
+  .badge{font-style:normal;font-family:ui-sans-serif,system-ui,sans-serif;font-size:10px;
+         font-weight:700;letter-spacing:.04em;padding:2px 6px;border-radius:999px;margin-left:6px}
+  .badge.pass{background:var(--pass-bg);color:var(--pass-fg)}
+  .badge.warn{background:var(--warn-bg);color:var(--warn-fg)}
+  .badge.fail{background:var(--fail-bg);color:var(--fail-fg)}
   .meta{display:flex;flex-wrap:wrap;gap:10px 26px}
   .meta div{min-width:120px}
   .meta span{display:block;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
@@ -52,11 +92,18 @@
   .group{margin-bottom:30px}
   .group h2{font-size:13px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
             font-weight:600;margin-bottom:10px}
-  .row{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
-  .sw{border:none;padding:0;border-radius:11px;overflow:hidden;background:var(--card);
-      border:1px solid var(--line);cursor:pointer;text-align:left;transition:transform .12s}
-  .sw:hover{transform:translateY(-3px)}
-  .sw .chip{height:74px;display:block}
+  .row{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+  .sw{border:1px solid var(--line);padding:0;border-radius:var(--r);overflow:hidden;
+      background:var(--card);cursor:pointer;text-align:left;
+      transition:transform .12s, box-shadow .12s, border-color .12s}
+  .sw:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:var(--muted)}
+  .sw.on{box-shadow:0 0 0 2px var(--ink), var(--shadow);transform:translateY(-2px)}
+  .sw .chip{height:84px;display:flex;position:relative}
+  .sw .chip i{flex:1;display:block;font-style:normal}
+  .sw .chip .hexOn{position:absolute;left:9px;bottom:8px;font-family:ui-monospace,monospace;
+    font-size:11px;font-weight:600;letter-spacing:.02em;opacity:0;transition:opacity .15s}
+  .sw:hover .chip .hexOn, .sw:focus-visible .chip .hexOn{opacity:.85}
+  .sw .chip i{flex:1;display:block;font-style:normal}
   .sw .lbl{padding:8px 10px 9px;display:block}
   .sw .lbl b{display:block;font-family:ui-monospace,monospace;font-size:12.5px;font-weight:550;text-transform:uppercase}
   .sw .lbl i{display:block;font-style:normal;font-size:11px;color:var(--muted);margin-top:1px}
@@ -65,7 +112,17 @@
     background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:13.5px;
     opacity:0;pointer-events:none;transition:.22s;font-family:ui-monospace,monospace}
   #toast.on{opacity:1;transform:translate(-50%,0)}
-  footer{margin-top:40px;font-size:12.5px;color:var(--muted)}
+  .preview{display:flex;flex-direction:column;gap:10px;justify-content:center;
+    padding:16px 18px;border-radius:var(--r);min-width:190px;margin-left:auto}
+  .preview .pv-ttl{font-size:13px;font-weight:650;letter-spacing:-.2px}
+  .preview .pv-btn{border:none;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:default}
+  @media (max-width:560px){
+    body{padding:14px 14px 60px}
+    .base .big{width:76px;height:76px}
+    .preview{margin-left:0;width:100%}
+    .row{grid-template-columns:repeat(auto-fit,minmax(106px,1fr))}
+    .bar{padding:8px 0 10px}
+  }
 </style>
 </head>
 <body>
@@ -73,12 +130,23 @@
   <header>
     <span class="dot" id="brandDot"></span>
     <h1>Hue<em>Kit</em></h1>
-    <span class="tag">single-color palette generator</span>
+    <span class="tag" id="modeTag">single-color palette generator</span>
   </header>
 
+  <div class="modes" role="tablist">
+    <button type="button" class="on" data-mode="single" id="modeSingle">Single color</button>
+    <button type="button" data-mode="duo" id="modeDuo">Two colors</button>
+  </div>
+
   <div class="bar">
-    <input id="colorInput" value="#c17440" placeholder="#c17440  /  c17440  /  rgb(193,116,64)" spellcheck="false">
-    <input type="color" id="picker" value="#c17440">
+    <div class="color-slot">
+      <input id="colorInput" value="#c17440" placeholder="#c17440  /  rgb(193,116,64)" spellcheck="false">
+      <input type="color" id="picker" value="#c17440">
+    </div>
+    <div class="color-slot hidden" id="slotB">
+      <input id="colorInputB" value="#111111" placeholder="#111111  /  rgb(17,17,17)" spellcheck="false">
+      <input type="color" id="pickerB" value="#111111">
+    </div>
     <button class="primary" id="goBtn">Generate</button>
     <button id="randBtn">Random</button>
     <button id="copyAll">Copy CSS</button>
@@ -88,16 +156,23 @@
   <div class="base" id="baseCard"></div>
   <div id="palettes"></div>
 
-  <footer>Click on any swatch to copy the hex code.</footer>
+  <footer id="hint">Click on any swatch to copy the hex code.</footer>
 </div>
 <div id="toast"></div>
 
 <script>
 (function(){
   const $ = s => document.querySelector(s);
-  const input=$('#colorInput'), picker=$('#picker'), err=$('#err'),
-        baseCard=$('#baseCard'), out=$('#palettes'), toast=$('#toast'), dot=$('#brandDot');
+  const input=$('#colorInput'), picker=$('#picker'),
+        inputB=$('#colorInputB'), pickerB=$('#pickerB'),
+        err=$('#err'), baseCard=$('#baseCard'), out=$('#palettes'),
+        toast=$('#toast'), dot=$('#brandDot'), hint=$('#hint'),
+        modeTag=$('#modeTag'), slotB=$('#slotB');
+
+  let mode='single';
   let scaleForCss=[];
+  let selectedPair=null;
+  let lastPair=null;
 
   /* ---------- parsing & conversion ---------- */
   const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
@@ -151,44 +226,120 @@
   }
   const contrast=(a,b)=>{const L1=lum(a),L2=lum(b);return ((Math.max(L1,L2)+.05)/(Math.min(L1,L2)+.05));};
   const readable=c=>contrast(c,{r:255,g:255,b:255})>=contrast(c,{r:17,g:17,b:17})?'#ffffff':'#111111';
+  const wcag=r=> r>=7?['AAA','pass'] : r>=4.5?['AA','pass'] : r>=3?['AA lg','warn'] : ['Fail','fail'];
+  const ratio=r=>{const [t,c]=wcag(r);return `${r.toFixed(2)}:1 <em class="badge ${c}">${t}</em>`;};
+
+  function colorName(rgb){
+    const {h,s,l}=rgbToHsl(rgb);
+    if(l<=8) return 'Black';
+    if(l>=94 && s<12) return 'White';
+    if(s<10) return l<40?'Charcoal':l<70?'Gray':'Silver';
+    const bands=[[15,'Red'],[45,'Orange'],[70,'Yellow'],[155,'Green'],
+                 [200,'Cyan'],[255,'Blue'],[310,'Purple'],[345,'Pink'],[360,'Red']];
+    const hue=bands.find(x=>h<=x[0])[1];
+    const mod=l<28?'Deep ':l>75?'Pale ':s>72?'Vivid ':'';
+    return (mod+hue).trim();
+  }
+  const pairName=(a,b)=>`${colorName(a)} × ${colorName(b)}`;
 
   /* ---------- rendering ---------- */
-  function swatch(rgb,label){
-    const hex=toHex(rgb), hsl=rgbToHsl(rgb);
+  function chipHtml(a,b){
+    if(b) return `<i style="background:${toHex(a)}"></i><i style="background:${toHex(b)}"></i>`;
+    return `<i style="background:${toHex(a)}"></i>`;
+  }
+
+  function swatch(rgb,label,pair){
+    const hex=toHex(rgb);
     const b=document.createElement('button');
     b.className='sw';
-    b.innerHTML=`<span class="chip" style="background:${hex}"></span>
-      <span class="lbl"><b>${hex}</b><i>${label} · ${rgb.r|0},${rgb.g|0},${rgb.b|0}</i></span>`;
-    b.onclick=()=>copy(hex, hex+' copied');
+    if(pair){
+      const hexB=toHex(pair);
+      b.dataset.a=hex; b.dataset.b=hexB;
+      b.innerHTML=`<span class="chip">${chipHtml(rgb,pair)}</span>
+        <span class="lbl"><b>${hex} · ${hexB}</b><i>${label}</i></span>`;
+      b.onclick=()=>selectPair(rgb,pair,label,b);
+    }else{
+      
+      b.innerHTML=`<span class="chip">${chipHtml(rgb)}<span class="hexOn" style="color:${readable(rgb)}">copy</span></span>
+        <span class="lbl"><b>${hex}</b><i>${label} · ${rgb.r|0},${rgb.g|0},${rgb.b|0}</i></span>`;
+      b.onclick=()=>copy(hex, hex+' copied');
+    }
     return b;
   }
-  function group(title, items){
+
+  function selectPair(a,b,label,btn){
+    selectedPair={a,b,label,name:pairName(a,b)};
+    out.querySelectorAll('.sw.on').forEach(el=>el.classList.remove('on'));
+    btn.classList.add('on');
+    paintBaseDuo(a,b,true);
+    copy(`${toHex(a)} ${toHex(b)}`, selectedPair.name+' selected');
+  }
+
+  function group(title, items, paired){
     const g=document.createElement('div'); g.className='group';
     const h=document.createElement('h2'); h.textContent=title; g.appendChild(h);
     const row=document.createElement('div'); row.className='row';
-    items.forEach(([rgb,lab])=>row.appendChild(swatch(rgb,lab)));
+    items.forEach(item=>{
+      if(paired) row.appendChild(swatch(item[0], item[2], item[1]));
+      else row.appendChild(swatch(item[0], item[1]));
+    });
     g.appendChild(row); out.appendChild(g);
   }
 
-  function render(rgb){
+  function paintBaseSingle(rgb){
     const hex=toHex(rgb), hsl=rgbToHsl(rgb);
-    document.documentElement.style.setProperty('--accent',hex);
-    picker.value=hex;
     const cw=contrast(rgb,{r:255,g:255,b:255}), cb=contrast(rgb,{r:17,g:17,b:17});
-
+    document.documentElement.style.setProperty('--accent',hex);
+    dot.classList.remove('split');
     baseCard.innerHTML=`
-      <div class="big" style="background:${hex}"></div>
-      <div class="meta">
-        <div><span>Hex</span><b>${hex.toUpperCase()}</b></div>
-        <div><span>RGB</span><b>${rgb.r}, ${rgb.g}, ${rgb.b}</b></div>
-        <div><span>HSL</span><b>${hsl.h}°, ${hsl.s}%, ${hsl.l}%</b></div>
-        <div><span>vs White</span><b>${cw.toFixed(2)}:1</b></div>
-        <div><span>vs Black</span><b>${cb.toFixed(2)}:1</b></div>
-        <div><span>Best text</span><b>${readable(rgb).toUpperCase()}</b></div>
+      <div class="big">${chipHtml(rgb)}</div>
+      <div>
+        <div class="name">${colorName(rgb)}</div>
+        <div class="meta">
+          <div><span>Hex</span><b>${hex.toUpperCase()}</b></div>
+          <div><span>RGB</span><b>${rgb.r}, ${rgb.g}, ${rgb.b}</b></div>
+          <div><span>HSL</span><b>${hsl.h}°, ${hsl.s}%, ${hsl.l}%</b></div>
+          <div><span>vs White</span><b>${ratio(cw)}</b></div>
+          <div><span>vs Black</span><b>${ratio(cb)}</b></div>
+          <div><span>Best text</span><b>${readable(rgb).toUpperCase()}</b></div>
+        </div>
       </div>`;
+  }
 
+  function paintBaseDuo(a,b,fromSelect){
+    const hexA=toHex(a), hexB=toHex(b);
+    const hslA=rgbToHsl(a), hslB=rgbToHsl(b);
+    const name=pairName(a,b);
+    document.documentElement.style.setProperty('--accent',hexA);
+    document.documentElement.style.setProperty('--accent-a',hexA);
+    document.documentElement.style.setProperty('--accent-b',hexB);
+    dot.classList.add('split');
+    baseCard.innerHTML=`
+      <div class="big">${chipHtml(a,b)}</div>
+      <div>
+        <div class="name">${name}${fromSelect?' · selected':''}</div>
+        <div class="meta">
+          <div><span>Left</span><b>${hexA.toUpperCase()}</b></div>
+          <div><span>Right</span><b>${hexB.toUpperCase()}</b></div>
+          <div><span>Left HSL</span><b>${hslA.h}°, ${hslA.s}%, ${hslA.l}%</b></div>
+          <div><span>Right HSL</span><b>${hslB.h}°, ${hslB.s}%, ${hslB.l}%</b></div>
+           <div><span>Contrast</span><b>${ratio(contrast(a,b))}</b></div>
+                    <div><span>Pair</span><b>${name}</b></div>
+        </div>
+      </div>
+      <div class="preview" style="background:${hexA}">
+        <div class="pv-ttl" style="color:${readable(a)}">Preview</div>
+        <button class="pv-btn" style="background:${hexB};color:${readable(b)}">Call to action</button>
+      </div>`;
+  }
+
+  function render(rgb){
+    picker.value=toHex(rgb);
+    paintBaseSingle(rgb);
     out.innerHTML='';
+    selectedPair=null;
     const W={r:255,g:255,b:255}, B={r:0,g:0,b:0}, G={r:128,g:128,b:128};
+    const hsl=rgbToHsl(rgb);
 
     group('Tints — white mix',  [.15,.3,.45,.6,.75,.9].map(a=>[mix(rgb,W,a), (a*100)+'% white']));
     group('Shades — black mix', [.15,.3,.45,.6,.75,.9].map(a=>[mix(rgb,B,a), (a*100)+'% black']));
@@ -214,6 +365,61 @@
     ]);
   }
 
+  function renderDuo(a,b){
+    picker.value=toHex(a);
+    pickerB.value=toHex(b);
+    lastPair={a,b};
+    selectedPair=null;
+    paintBaseDuo(a,b,false);
+    out.innerHTML='';
+    const W={r:255,g:255,b:255}, K={r:0,g:0,b:0};
+    const hslA=rgbToHsl(a), hslB=rgbToHsl(b);
+    const name=pairName(a,b);
+
+    group(name+' — split pair', [
+      [a,b,'50 / 50'],
+      [b,a,'50 / 50 reverse'],
+      [a, mix(a,b,.5), 'left + midpoint'],
+      [mix(a,b,.5), b, 'midpoint + right'],
+    ], true);
+
+    group(name+' — tint splits', [
+      [a, mix(b,W,.25), 'right 25% white'],
+      [a, mix(b,W,.5), 'right 50% white'],
+      [a, mix(b,W,.75), 'right 75% white'],
+      [mix(a,W,.25), b, 'left 25% white'],
+      [mix(a,W,.5), b, 'left 50% white'],
+      [mix(a,W,.75), b, 'left 75% white'],
+    ], true);
+
+    group(name+' — shade splits', [
+      [a, mix(b,K,.25), 'right 25% black'],
+      [a, mix(b,K,.5), 'right 50% black'],
+      [a, mix(b,K,.75), 'right 75% black'],
+      [mix(a,K,.25), b, 'left 25% black'],
+      [mix(a,K,.5), b, 'left 50% black'],
+      [mix(a,K,.75), b, 'left 75% black'],
+    ], true);
+
+    group(name+' — blend splits', [
+      [a, mix(a,b,.2), '20% blend'],
+      [a, mix(a,b,.4), '40% blend'],
+      [a, mix(a,b,.6), '60% blend'],
+      [a, mix(a,b,.8), '80% blend'],
+      [mix(b,a,.3), mix(a,b,.3), 'soft cross'],
+      [mix(b,a,.15), mix(a,b,.15), 'near originals'],
+    ], true);
+
+    group(name+' — harmony splits', [
+      [a, shiftHue(hslB,180), 'right complement'],
+      [shiftHue(hslA,180), b, 'left complement'],
+      [a, shiftHue(hslB,30), 'right analogous'],
+      [a, shiftHue(hslB,-30), 'right analogous −'],
+      [shiftHue(hslA,120), b, 'left triadic'],
+      [a, shiftHue(hslB,120), 'right triadic'],
+    ], true);
+  }
+
   /* ---------- actions ---------- */
   function copy(text,msg){
     const done=()=>{toast.textContent=msg;toast.classList.add('on');
@@ -230,21 +436,62 @@
     document.body.removeChild(ta);
   }
 
-  function go(){
-    const rgb=parseColor(input.value);
-    if(!rgb){ err.textContent='Bujhte parlam na. Try: #c17440 or rgb(193,116,64)'; return; }
-    err.textContent=''; render(rgb);
+  function setMode(next){
+    mode=next;
+    const isDuo=mode==='duo';
+    $('#modeSingle').classList.toggle('on', !isDuo);
+    $('#modeDuo').classList.toggle('on', isDuo);
+    slotB.classList.toggle('hidden', !isDuo);
+    modeTag.textContent=isDuo?'two-color split palette':'single-color palette generator';
+    hint.textContent=isDuo
+      ? 'Click a split swatch to select that pair and use it. Copy CSS exports the selected pair.'
+      : 'Click on any swatch to copy the hex code.';
+    go();
   }
 
+  function go(){
+    const rgb=parseColor(input.value);
+    if(!rgb){ err.textContent='Couldn\'t read that color. Try: #c17440 or rgb(193,116,64)'; return; }
+    if(mode==='duo'){
+      const rgbB=parseColor(inputB.value);
+      if(!rgbB){ err.textContent='Second color missing. Try: #111111 or rgb(17,17,17)'; return; }
+      err.textContent='';
+      renderDuo(rgb, rgbB);
+      return;
+    }
+    err.textContent='';
+    render(rgb);
+  }
+
+  $('#modeSingle').onclick=()=>setMode('single');
+  $('#modeDuo').onclick=()=>setMode('duo');
   $('#goBtn').onclick=go;
   input.addEventListener('input',()=>{ if(parseColor(input.value)) go(); });
   input.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
+  inputB.addEventListener('input',()=>{ if(mode==='duo' && parseColor(inputB.value)) go(); });
+  inputB.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
   picker.addEventListener('input',()=>{ input.value=picker.value; go(); });
+  pickerB.addEventListener('input',()=>{ inputB.value=pickerB.value; go(); });
   $('#randBtn').onclick=()=>{
     const c=hslToRgb({h:Math.floor(Math.random()*360),s:35+Math.random()*50,l:30+Math.random()*35});
-    input.value=toHex(c); go();
+    input.value=toHex(c);
+    if(mode==='duo'){
+      let d, tries=0;
+      do{ d=hslToRgb({h:Math.floor(Math.random()*360),s:20+Math.random()*70,l:8+Math.random()*70}); }
+      while(contrast(c,d)<2 && ++tries<20);
+      inputB.value=toHex(d);
+    }
+    go();
   };
   $('#copyAll').onclick=()=>{
+    if(mode==='duo'){
+      const pair=selectedPair || (lastPair && {a:lastPair.a,b:lastPair.b,name:pairName(lastPair.a,lastPair.b)});
+      if(!pair) return;
+      const a=toHex(pair.a), b=toHex(pair.b);
+      const css=`:root{\n  --brand-a: ${a};\n  --brand-b: ${b};\n}\n.brand-split{\n  background: linear-gradient(90deg, var(--brand-a) 50%, var(--brand-b) 50%);\n}`;
+      copy(css, (pair.name||'Pair')+' CSS copied');
+      return;
+    }
     if(!scaleForCss.length) return;
     const css=':root{\n'+scaleForCss.map(([n,h])=>`  --brand-${n}: ${h};`).join('\n')+'\n}';
     copy(css,'CSS variables copied');
