@@ -1,15 +1,19 @@
 (function(){
     const $ = s => document.querySelector(s);
-    const input=$('#colorInput'), picker=$('#picker'),
+    const bar=document.querySelector('.bar');
+    const input=$('#colorInput'),   picker=$('#picker'),
           inputB=$('#colorInputB'), pickerB=$('#pickerB'),
+          inputC=$('#colorInputC'), pickerC=$('#pickerC'),
           err=$('#err'), baseCard=$('#baseCard'), out=$('#palettes'),
           toast=$('#toast'), dot=$('#brandDot'), hint=$('#hint'),
-          modeTag=$('#modeTag'), slotB=$('#slotB');
+          modeTag=$('#modeTag'), slotB=$('#slotB'), slotC=$('#slotC');
   
     let mode='single';
     let scaleForCss=[];
-    let selectedPair=null;
-    let lastPair=null;
+    let selectedSet=null;
+    let lastSet=null;
+  
+    const COUNT={single:1,duo:2,trio:3};
   
     /* ---------- parsing & conversion ---------- */
     const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
@@ -77,27 +81,26 @@
       const mod=l<28?'Deep ':l>75?'Pale ':s>72?'Vivid ':'';
       return (mod+hue).trim();
     }
-    const pairName=(a,b)=>`${colorName(a)} × ${colorName(b)}`;
+    const setName=cols=>cols.map(colorName).join(' × ');
   
     /* ---------- rendering ---------- */
-    function chipHtml(a,b){
-      if(b) return `<i style="background:${toHex(a)}"></i><i style="background:${toHex(b)}"></i>`;
-      return `<i style="background:${toHex(a)}"></i>`;
+    function chipHtml(...cols){
+      return cols.filter(Boolean).map(c=>`<i style="background:${toHex(c)}"></i>`).join('');
     }
   
-    function swatch(rgb,label,pair){
-      const hex=toHex(rgb);
+    function swatch(colors,label){
+      const hexes=colors.map(toHex);
       const b=document.createElement('button');
       b.type='button';
-      b.className='sw';
-      if(pair){
-        const hexB=toHex(pair);
-        b.dataset.a=hex; b.dataset.b=hexB;
+      b.className='sw'+(colors.length>1?' n'+colors.length:'');
+      if(colors.length>1){
+        b.dataset.hexes=hexes.join(' ');
         b.setAttribute('aria-pressed','false');
-        b.innerHTML=`<span class="chip">${chipHtml(rgb,pair)}</span>
-          <span class="lbl"><b>${hex} · ${hexB}</b><i>${label}</i></span>`;
-        b.onclick=()=>selectPair(rgb,pair,label,b);
+        b.innerHTML=`<span class="chip">${chipHtml(...colors)}</span>
+          <span class="lbl"><b>${hexes.join(' · ')}</b><i>${label}</i></span>`;
+        b.onclick=()=>selectSet(colors,label,b);
       }else{
+        const rgb=colors[0], hex=hexes[0];
         b.innerHTML=`<span class="chip">${chipHtml(rgb)}<span class="hexOn" style="color:${readable(rgb)}">copy</span></span>
           <span class="lbl"><b>${hex}</b><i>${label} · ${rgb.r|0},${rgb.g|0},${rgb.b|0}</i></span>`;
         b.onclick=()=>copy(hex, hex+' copied');
@@ -105,25 +108,25 @@
       return b;
     }
   
-    function selectPair(a,b,label,btn){
-      selectedPair={a,b,label,name:pairName(a,b)};
+    function selectSet(colors,label,btn){
+      selectedSet={colors,label,name:setName(colors)};
       out.querySelectorAll('.sw.on').forEach(el=>{
         el.classList.remove('on'); el.setAttribute('aria-pressed','false');
       });
       btn.classList.add('on');
       btn.setAttribute('aria-pressed','true');
-      paintBaseDuo(a,b,true);
-      copy(`${toHex(a)} ${toHex(b)}`, selectedPair.name+' selected');
+      paintBaseMulti(colors,true);
+      copy(colors.map(toHex).join(' '), selectedSet.name+' selected');
     }
   
-    function group(title, items, paired){
+    // n = how many colors per item; item format: [c1, ...cN, label]
+    function group(title, items, n){
+      n = n===true ? 2 : (n||1);
       const g=document.createElement('div'); g.className='group';
       const h=document.createElement('h2'); h.textContent=title; g.appendChild(h);
-      const row=document.createElement('div'); row.className='row';
-      items.forEach(item=>{
-        if(paired) row.appendChild(swatch(item[0], item[2], item[1]));
-        else row.appendChild(swatch(item[0], item[1]));
-      });
+      const row=document.createElement('div');
+      row.className='row'+(n>1?' n'+n:'');
+      items.forEach(it=>row.appendChild(swatch(it.slice(0,n), it[n])));
       g.appendChild(row); out.appendChild(g);
     }
   
@@ -132,6 +135,7 @@
       const cw=contrast(rgb,{r:255,g:255,b:255}), cb=contrast(rgb,{r:17,g:17,b:17});
       document.documentElement.style.setProperty('--accent',hex);
       dot.classList.remove('split');
+      dot.classList.remove('split3');
       baseCard.innerHTML=`
         <div class="big">${chipHtml(rgb)}</div>
         <div>
@@ -147,33 +151,44 @@
         </div>`;
     }
   
-    function paintBaseDuo(a,b,fromSelect){
-      const hexA=toHex(a), hexB=toHex(b);
-      const hslA=rgbToHsl(a), hslB=rgbToHsl(b);
-      const name=pairName(a,b);
-      const inkA=readable(a), inkB=readable(b);
-      document.documentElement.style.setProperty('--accent',hexA);
-      document.documentElement.style.setProperty('--accent-a',hexA);
-      document.documentElement.style.setProperty('--accent-b',hexB);
-      dot.classList.add('split');
+    function paintBaseMulti(colors,fromSelect){
+      const hexes=colors.map(toHex);
+      const name=setName(colors);
+      const labels = colors.length===2 ? ['Left','Right'] : ['First','Second','Third'];
+      const root=document.documentElement.style;
+      root.setProperty('--accent',hexes[0]);
+      root.setProperty('--accent-a',hexes[0]);
+      root.setProperty('--accent-b',hexes[1]);
+      root.setProperty('--accent-c',hexes[2]||hexes[1]);
+      dot.classList.toggle('split',  colors.length===2);
+      dot.classList.toggle('split3', colors.length===3);
+  
+      let meta='';
+      colors.forEach((c,i)=>{
+        const h=rgbToHsl(c);
+        meta+=`<div><span>${labels[i]}</span><b>${hexes[i].toUpperCase()}</b></div>`;
+        meta+=`<div><span>${labels[i]} HSL</span><b>${h.h}°, ${h.s}%, ${h.l}%</b></div>`;
+      });
+      for(let i=0;i<colors.length;i++){
+        for(let j=i+1;j<colors.length;j++){
+          meta+=`<div><span>${labels[i]} vs ${labels[j]}</span><b>${ratio(contrast(colors[i],colors[j]))}</b></div>`;
+        }
+      }
+  
       baseCard.innerHTML=`
-        <div class="big">${chipHtml(a,b)}</div>
+        <div class="big">${chipHtml(...colors)}</div>
         <div>
           <div class="name">${name}${fromSelect?' · selected':''}</div>
-          <div class="meta">
-            <div><span>Left</span><b>${hexA.toUpperCase()}</b></div>
-            <div><span>Right</span><b>${hexB.toUpperCase()}</b></div>
-            <div><span>Left HSL</span><b>${hslA.h}°, ${hslA.s}%, ${hslA.l}%</b></div>
-            <div><span>Right HSL</span><b>${hslB.h}°, ${hslB.s}%, ${hslB.l}%</b></div>
-            <div><span>Contrast</span><b>${ratio(contrast(a,b))}</b></div>
-            <div><span>Pair</span><b>${name}</b></div>
-          </div>
+          <div class="meta">${meta}</div>
         </div>
-        <div class="preview" style="background:${hexA};color:${inkA}" aria-hidden="true">
+        <div class="preview" style="background:${hexes[0]};color:${readable(colors[0])}" aria-hidden="true">
           <div class="pv-cap">Live preview</div>
-          <div class="pv-ttl">Heading on left color</div>
+          <div class="pv-ttl">Heading on first color</div>
           <div class="pv-txt">Body text sample.</div>
-          <span class="pv-btn" style="background:${hexB};color:${inkB}">Button</span>
+          <div class="pv-actions">
+            <span class="pv-btn" style="background:${hexes[1]};color:${readable(colors[1])}">Button</span>
+            ${colors[2]?`<span class="pv-btn" style="background:${hexes[2]};color:${readable(colors[2])}">Tag</span>`:''}
+          </div>
         </div>`;
     }
   
@@ -181,7 +196,7 @@
       picker.value=toHex(rgb);
       paintBaseSingle(rgb);
       out.innerHTML='';
-      selectedPair=null;
+      selectedSet=null; lastSet=null;
       const W={r:255,g:255,b:255}, B={r:0,g:0,b:0}, G={r:128,g:128,b:128};
       const hsl=rgbToHsl(rgb);
   
@@ -212,20 +227,20 @@
     function renderDuo(a,b){
       picker.value=toHex(a);
       pickerB.value=toHex(b);
-      lastPair={a,b};
-      selectedPair=null;
-      paintBaseDuo(a,b,false);
+      lastSet=[a,b];
+      selectedSet=null;
+      paintBaseMulti([a,b],false);
       out.innerHTML='';
       const W={r:255,g:255,b:255}, K={r:0,g:0,b:0};
       const hslA=rgbToHsl(a), hslB=rgbToHsl(b);
-      const name=pairName(a,b);
+      const name=setName([a,b]);
   
       group(name+' — split pair', [
         [a,b,'50 / 50'],
         [b,a,'50 / 50 reverse'],
         [a, mix(a,b,.5), 'left + midpoint'],
         [mix(a,b,.5), b, 'midpoint + right'],
-      ], true);
+      ], 2);
   
       group(name+' — tint splits', [
         [a, mix(b,W,.25), 'right 25% white'],
@@ -234,7 +249,7 @@
         [mix(a,W,.25), b, 'left 25% white'],
         [mix(a,W,.5), b, 'left 50% white'],
         [mix(a,W,.75), b, 'left 75% white'],
-      ], true);
+      ], 2);
   
       group(name+' — shade splits', [
         [a, mix(b,K,.25), 'right 25% black'],
@@ -243,7 +258,7 @@
         [mix(a,K,.25), b, 'left 25% black'],
         [mix(a,K,.5), b, 'left 50% black'],
         [mix(a,K,.75), b, 'left 75% black'],
-      ], true);
+      ], 2);
   
       group(name+' — blend splits', [
         [a, mix(a,b,.2), '20% blend'],
@@ -252,7 +267,7 @@
         [a, mix(a,b,.8), '80% blend'],
         [mix(b,a,.3), mix(a,b,.3), 'soft cross'],
         [mix(b,a,.15), mix(a,b,.15), 'near originals'],
-      ], true);
+      ], 2);
   
       group(name+' — harmony splits', [
         [a, shiftHue(hslB,180), 'right complement'],
@@ -261,7 +276,65 @@
         [a, shiftHue(hslB,-30), 'right analogous −'],
         [shiftHue(hslA,120), b, 'left triadic'],
         [a, shiftHue(hslB,120), 'right triadic'],
-      ], true);
+      ], 2);
+    }
+  
+    function renderTrio(a,b,c){
+      picker.value=toHex(a);
+      pickerB.value=toHex(b);
+      pickerC.value=toHex(c);
+      lastSet=[a,b,c];
+      selectedSet=null;
+      paintBaseMulti([a,b,c],false);
+      out.innerHTML='';
+      const W={r:255,g:255,b:255}, K={r:0,g:0,b:0};
+      const hslA=rgbToHsl(a), hslB=rgbToHsl(b), hslC=rgbToHsl(c);
+      const name=setName([a,b,c]);
+  
+      group(name+' — split set', [
+        [a,b,c,'1 / 2 / 3'],
+        [c,b,a,'reversed'],
+        [b,c,a,'rotate left'],
+        [c,a,b,'rotate right'],
+        [a, mix(a,c,.5), c, 'ends + midpoint'],
+        [mix(a,b,.5), b, mix(b,c,.5), 'softened'],
+      ], 3);
+  
+      group(name+' — tint set', [
+        [mix(a,W,.25), mix(b,W,.25), mix(c,W,.25), '25% white'],
+        [mix(a,W,.5),  mix(b,W,.5),  mix(c,W,.5),  '50% white'],
+        [mix(a,W,.75), mix(b,W,.75), mix(c,W,.75), '75% white'],
+        [mix(a,W,.5), b, c, 'first 50% white'],
+        [a, mix(b,W,.5), c, 'second 50% white'],
+        [a, b, mix(c,W,.5), 'third 50% white'],
+      ], 3);
+  
+      group(name+' — shade set', [
+        [mix(a,K,.25), mix(b,K,.25), mix(c,K,.25), '25% black'],
+        [mix(a,K,.5),  mix(b,K,.5),  mix(c,K,.5),  '50% black'],
+        [mix(a,K,.75), mix(b,K,.75), mix(c,K,.75), '75% black'],
+        [mix(a,K,.5), b, c, 'first 50% black'],
+        [a, mix(b,K,.5), c, 'second 50% black'],
+        [a, b, mix(c,K,.5), 'third 50% black'],
+      ], 3);
+  
+      group(name+' — blend set', [
+        [a, mix(a,b,.5), b, '1 → 2 ramp'],
+        [b, mix(b,c,.5), c, '2 → 3 ramp'],
+        [a, mix(a,c,.33), mix(a,c,.66), '1 → 3 ramp'],
+        [mix(a,b,.2), mix(b,c,.2), mix(c,a,.2), '20% cross'],
+        [mix(a,b,.4), mix(b,c,.4), mix(c,a,.4), '40% cross'],
+        [mix(b,a,.3), mix(c,b,.3), mix(a,c,.3), 'soft cross'],
+      ], 3);
+  
+      group(name+' — harmony set', [
+        [shiftHue(hslA,180), b, c, 'first complement'],
+        [a, shiftHue(hslB,180), c, 'second complement'],
+        [a, b, shiftHue(hslC,180), 'third complement'],
+        [a, shiftHue(hslB,30), shiftHue(hslC,-30), 'analogous spread'],
+        [shiftHue(hslA,120), shiftHue(hslB,120), shiftHue(hslC,120), 'all +120'],
+        [shiftHue(hslA,240), shiftHue(hslB,240), shiftHue(hslC,240), 'all +240'],
+      ], 3);
     }
   
     /* ---------- actions ---------- */
@@ -284,62 +357,84 @@
   
     function setMode(next){
       mode=next;
-      const isDuo=mode==='duo';
-      $('#modeSingle').classList.toggle('on', !isDuo);
-      $('#modeDuo').classList.toggle('on', isDuo);
-      $('#modeSingle').setAttribute('aria-selected', String(!isDuo));
-      $('#modeDuo').setAttribute('aria-selected', String(isDuo));
-      slotB.classList.toggle('hidden', !isDuo);
-      modeTag.textContent=isDuo?'two-color split palette':'single-color palette generator';
-      hint.textContent=isDuo
-        ? 'Click a split swatch to select that pair. Copy CSS exports the selected pair.'
+      const n=COUNT[mode]||1;
+      [['#modeSingle',1],['#modeDuo',2],['#modeTrio',3]].forEach(([sel,k])=>{
+        const el=$(sel); if(!el) return;
+        el.classList.toggle('on', n===k);
+        el.setAttribute('aria-selected', String(n===k));
+      });
+      slotB.classList.toggle('hidden', n<2);
+      slotC.classList.toggle('hidden', n<3);
+      bar.classList.toggle('tight', n===3);
+      modeTag.textContent = n===3 ? 'three-color split palette'
+                         : n===2 ? 'two-color split palette'
+                                 : 'single-color palette generator';
+      hint.textContent = n>1
+        ? 'Click a split swatch to select that set. Copy CSS exports the selected set.'
         : 'Click on any swatch to copy the hex code.';
       go();
     }
   
     function go(){
-      const rgb=parseColor(input.value);
-      if(!rgb){ err.textContent="Couldn't read that color. Try: #c17440 or rgb(193,116,64)"; return; }
-      if(mode==='duo'){
-        const rgbB=parseColor(inputB.value);
-        if(!rgbB){ err.textContent='Second color missing. Try: #111111 or rgb(17,17,17)'; return; }
-        err.textContent='';
-        renderDuo(rgb, rgbB);
-        return;
-      }
-      err.textContent='';
-      render(rgb);
+      const a=parseColor(input.value);
+      if(!a){ err.textContent="Couldn't read that color. Try: #c17440 or rgb(193,116,64)"; return; }
+      if(mode==='single'){ err.textContent=''; render(a); return; }
+  
+      const b=parseColor(inputB.value);
+      if(!b){ err.textContent='Second color missing. Try: #111111 or rgb(17,17,17)'; return; }
+      if(mode==='duo'){ err.textContent=''; renderDuo(a,b); return; }
+  
+      const c=parseColor(inputC.value);
+      if(!c){ err.textContent='Third color missing. Try: #f0ece6 or rgb(240,236,230)'; return; }
+      err.textContent=''; renderTrio(a,b,c);
     }
   
     $('#modeSingle').onclick=()=>setMode('single');
     $('#modeDuo').onclick=()=>setMode('duo');
+    $('#modeTrio').onclick=()=>setMode('trio');
     $('#goBtn').onclick=go;
-    input.addEventListener('input',()=>{ if(parseColor(input.value)) go(); });
-    input.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
-    inputB.addEventListener('input',()=>{ if(mode==='duo' && parseColor(inputB.value)) go(); });
-    inputB.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
+  
+    [[input,'single'],[inputB,'duo'],[inputC,'trio']].forEach(([el,least])=>{
+      el.addEventListener('input',()=>{
+        if(COUNT[mode] >= COUNT[least] && parseColor(el.value)) go();
+      });
+      el.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
+    });
     picker.addEventListener('input',()=>{ input.value=picker.value; go(); });
     pickerB.addEventListener('input',()=>{ inputB.value=pickerB.value; go(); });
+    pickerC.addEventListener('input',()=>{ inputC.value=pickerC.value; go(); });
+  
+    const randColor=()=>hslToRgb({
+      h:Math.floor(Math.random()*360), s:20+Math.random()*70, l:12+Math.random()*68
+    });
   
     $('#randBtn').onclick=()=>{
-      const c=hslToRgb({h:Math.floor(Math.random()*360),s:35+Math.random()*50,l:30+Math.random()*35});
-      input.value=toHex(c);
-      if(mode==='duo'){
-        let d, tries=0;
-        do{ d=hslToRgb({h:Math.floor(Math.random()*360),s:20+Math.random()*70,l:8+Math.random()*70}); }
-        while(contrast(c,d)<2 && ++tries<20);
-        inputB.value=toHex(d);
+      const n=COUNT[mode]||1;
+      const picked=[hslToRgb({h:Math.floor(Math.random()*360),s:35+Math.random()*50,l:30+Math.random()*35})];
+      while(picked.length<n){
+        let next, tries=0;
+        do{ next=randColor(); }
+        while(picked.some(p=>contrast(p,next)<1.7) && ++tries<30);
+        picked.push(next);
       }
+      input.value=toHex(picked[0]);
+      if(picked[1]) inputB.value=toHex(picked[1]);
+      if(picked[2]) inputC.value=toHex(picked[2]);
       go();
     };
   
     $('#copyAll').onclick=()=>{
-      if(mode==='duo'){
-        const pair=selectedPair || (lastPair && {a:lastPair.a,b:lastPair.b,name:pairName(lastPair.a,lastPair.b)});
-        if(!pair) return;
-        const a=toHex(pair.a), b=toHex(pair.b);
-        const css=`:root{\n  --brand-a: ${a};\n  --brand-b: ${b};\n}\n.brand-split{\n  background: linear-gradient(90deg, var(--brand-a) 50%, var(--brand-b) 50%);\n}`;
-        copy(css, (pair.name||'Pair')+' CSS copied');
+      if(mode!=='single'){
+        const set = selectedSet ? selectedSet.colors : lastSet;
+        if(!set || !set.length) return;
+        const hexes=set.map(toHex), n=hexes.length;
+        const vars=hexes.map((h,i)=>`  --brand-${i+1}: ${h};`).join('\n');
+        const stops=hexes.map((h,i)=>{
+          const from=+(i*100/n).toFixed(2), to=+((i+1)*100/n).toFixed(2);
+          return `var(--brand-${i+1}) ${from}%, var(--brand-${i+1}) ${to}%`;
+        }).join(',\n    ');
+        const css=`:root{\n${vars}\n}\n.brand-split{\n  background: linear-gradient(90deg,\n    ${stops});\n}`;
+        copy(css, (selectedSet?selectedSet.name:setName(set))+' CSS copied');
         return;
       }
       if(!scaleForCss.length) return;

@@ -17,6 +17,7 @@
   <div class="modes" role="tablist" aria-label="Palette mode">
     <button type="button" role="tab" aria-selected="true" class="on" data-mode="single" id="modeSingle">Single color</button>
     <button type="button" role="tab" aria-selected="false" data-mode="duo" id="modeDuo">Two colors</button>
+    <button type="button" role="tab" aria-selected="false" data-mode="trio" id="modeTrio">Three colors</button>
   </div>
 
   <div class="bar">
@@ -29,6 +30,11 @@
       <input type="text" id="colorInputB" value="#111111" aria-label="Second color"
              placeholder="#111111  /  rgb(17,17,17)" spellcheck="false">
       <input type="color" id="pickerB" value="#111111" aria-label="Pick second color">
+    </div>
+    <div class="color-slot hidden" id="slotC">
+      <input type="text" id="colorInputC" value="#f0ece6" aria-label="Third color"
+             placeholder="#f0ece6  /  rgb(240,236,230)" spellcheck="false">
+      <input type="color" id="pickerC" value="#f0ece6" aria-label="Pick third color">
     </div>
     <button type="button" class="primary" id="goBtn">Generate</button>
     <button type="button" id="randBtn">Random</button>
